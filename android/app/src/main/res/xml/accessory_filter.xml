@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Must match the Mac's AccessoryWatcher.Identity (manufacturer / model). -->
+<resources>
+    <usb-accessory manufacturer="Unbound" model="Unbound Display" />
+</resources>
