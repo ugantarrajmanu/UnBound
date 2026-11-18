@@ -1,0 +1,18 @@
+dist/
+.DS_Store
+# Mac build
+mac/.build/
+mac/.swiftpm/
+*.xcodeproj/xcuserdata/
+# Android build / machine-local
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties
+.idea/
+*.iml
+# Signing secrets — never commit
+*.jks
+*.keystore
+keystore.env
