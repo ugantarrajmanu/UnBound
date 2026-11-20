@@ -3,35 +3,48 @@
 Use an Android tablet as a **true extended display** for a Mac — a genuine second
 desktop, not mirroring — over USB-C or Wi-Fi, with touch, mouse, scroll and keyboard input.
 
-> Status: **release candidate 1.0.0.** Feasibility gate passed on Apple Silicon (macOS 27).
-> Before publishing: a Developer ID certificate + notarization for the Mac app (see Releasing),
-> a real download URL, and Intel Mac validation.
+> Status: **1.0.0.** Tested on Apple Silicon (macOS 27) with a Galaxy Tab S10 FE. Intel Macs untested.
 
 ```
-Mac (Unbound.app)                                           Android tablet (Unbound app)
+Mac (unbound-host)                                          Android tablet (Unbound app)
 CGVirtualDisplay ─► ScreenCaptureKit ─► VideoToolbox H.264 ─► USB-C (AOA) / Wi-Fi ─► MediaCodec ─► SurfaceView
        ▲                                                                                   │
        └──────────── CGEvent mouse / scroll / keyboard ◄──────── touch · mouse · keyboard ─┘
 ```
 
-## For users
+## Install
 
-1. **Mac:** open `Unbound-1.0.0.dmg`, drag Unbound to Applications, open it. It lives in the menu bar.
-   Grant **Screen Recording** (then relaunch) and **Accessibility** from its menu.
-2. **Tablet:** install `Unbound-1.0.0.apk` (or from the store).
-3. **Connect:**
-   - **USB-C:** plug the tablet into the Mac. The tablet asks *“Open Unbound to handle Unbound Display?”*
-     — tick *Always* and tap **OK**. No developer mode needed.
-   - **Wi-Fi:** open the app on the tablet and tap your Mac in the list. The Mac asks once to allow it.
+No Xcode or Android Studio needed. Downloads: **[latest release](https://github.com/ugantarrajmanu/UnBound/releases/latest)**.
 
-Drag windows onto the new display; arrange it in **System Settings › Displays**. Pick resolution
-(including Retina presets) and 60/90/120 Hz from the menu-bar icon.
+**Mac** (macOS 13 or newer), in Terminal:
+```bash
+curl -fsSL https://raw.githubusercontent.com/ugantarrajmanu/UnBound/main/scripts/install.sh | bash
+```
+
+**Tablet** (Android 8 or newer): on the tablet, download **Unbound.apk** from the release page and open it.
+Allow "Install unknown apps" for your browser when asked.
+
+## Use
+
+```bash
+unbound-host serve            # add --fps 90 for 90 Hz tablets; Ctrl+C to stop
+```
+
+1. Plug the tablet into the Mac with a USB-C cable. The tablet asks *"Open Unbound to handle Unbound Display?"*
+   Tick **Always** and tap **OK**. No developer mode needed.
+2. The first time, macOS asks for **Screen Recording** for your Terminal app. Allow it, then run the command
+   again. For touch and keyboard, also allow **Accessibility** (System Settings › Privacy & Security).
+3. Drag windows onto the new display. Arrange it in **System Settings › Displays**.
+
+Wi-Fi also works: open the app on the tablet and tap your Mac in the list.
+Options: `unbound-host --help` (resolution, frame rate, bitrate, `--no-wifi`).
 
 ## For developers
 
 ```bash
-scripts/run-usb.sh            # build both sides, install the debug app, run the CLI host @ 90 fps
-scripts/package.sh            # release artifacts → dist/ (DMG + APK)
+scripts/start.sh --fps 90     # build from source and run the server (needs Xcode or Command Line Tools)
+scripts/run-usb.sh            # build both sides, install the debug app over adb, run @ 90 fps
+scripts/release.sh            # build + publish a GitHub Release (Mac server + signed APK)
 ```
 
 `scripts/run-usb.sh` uses the **adb** path (needs USB debugging). Note: a running adb server owns

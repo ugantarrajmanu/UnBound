@@ -4,7 +4,7 @@ import Network
 public enum UnboundProduct {
     /// Where users get the tablet app. Android shows this when the app isn't installed
     /// and an accessory connects. Replace with the real download page before release.
-    public static let downloadURL = "https://unbound.app/download"
+    public static let downloadURL = "https://github.com/ugantarrajmanu/UnBound/releases/latest"
     public static let bonjourType = "_unbound._tcp"
 }
 
