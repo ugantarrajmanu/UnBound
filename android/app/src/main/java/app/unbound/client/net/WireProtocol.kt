@@ -10,6 +10,8 @@ import java.nio.ByteOrder
  */
 object Wire {
     const val MAGIC = 0x5542
+    /** Marker used before the rename (Annex builds); reported as "update" rather than garbage. */
+    const val LEGACY_MAGIC = 0x4158
     const val VERSION = 1
     const val HEADER_SIZE = 20
     const val MAX_PAYLOAD = 16 * 1024 * 1024
@@ -37,6 +39,18 @@ data class Header(val type: Int, val flags: Int, val payloadLength: Int, val tim
     val isKeyframe get() = flags and Wire.FLAG_KEYFRAME != 0
 
     companion object {
+        /** True when [b] starts with a plausible HELLO header (used to resync a stream). */
+        fun isHello(b: ByteArray): Boolean {
+            if (b.size < Wire.HEADER_SIZE) return false
+            val buf = ByteBuffer.wrap(b).order(ByteOrder.BIG_ENDIAN)
+            if ((buf.short.toInt() and 0xFFFF) != Wire.MAGIC) return false
+            if ((buf.get().toInt() and 0xFF) != Wire.VERSION) return false
+            if ((buf.get().toInt() and 0xFF) != Wire.TYPE_HELLO) return false
+            val length = buf.getInt(8).toLong() and 0xFFFFFFFFL
+            return length <= MAX_HELLO
+        }
+        const val MAX_HELLO = 4096
+
         fun parse(bytes: ByteArray): Header {
             if (bytes.size < Wire.HEADER_SIZE) throw ProtocolException("truncated header")
             val b = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN)

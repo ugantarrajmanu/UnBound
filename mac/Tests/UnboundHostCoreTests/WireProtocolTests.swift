@@ -92,4 +92,26 @@ import Testing
         for _ in 0..<20 { dropped += 1; _ = abr.update(framesDropped: dropped, queuedBytes: 0) }
         #expect(abr.bitrate == 1_500_000)
     }
+
+    @Test func parserSkipsStaleBytesBeforeHello() throws {
+        var w = ByteWriter()
+        w.u16(1); w.u16(2304); w.u16(1440); w.u16(280); w.u8(3); w.data.append(Data("abcTab".utf8))
+        let msg = WireMessage(type: .hello, payload: w.data).serialized()
+        let ping = WireMessage(type: .ping).serialized()
+        var stale = Data(repeating: 0x55, count: 7)            // includes a half-matching magic byte
+        stale.append(ping.suffix(13))                          // the tail of an old message
+        var parser = FrameParser()
+        var got = try parser.append(stale + msg.prefix(10))
+        #expect(got.isEmpty)
+        got = try parser.append(msg.dropFirst(10) + ping)
+        #expect(got.map(\.0.type) == [.hello, .ping])
+        #expect(parser.skippedBytes == 20)
+    }
+
+    @Test func parserReportsOutdatedPeer() {
+        var parser = FrameParser()
+        #expect(throws: WireHeader.ParseError.outdatedPeer) {
+            try parser.append(Data([0x41, 0x58, 1, 1] + [UInt8](repeating: 0, count: 16)))
+        }
+    }
 }

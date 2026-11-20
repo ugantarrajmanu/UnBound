@@ -114,8 +114,12 @@ class StreamClient(
 
     private inline fun readLoop(input: DataInputStream, kind: Channel.Kind, markConnected: () -> Unit) {
         val headerBytes = ByteArray(Wire.HEADER_SIZE)
+        // USB can deliver the tail of a previous session first; skip to the Mac's HELLO.
+        syncToHello(input, headerBytes)
+        var synced = true
         while (running.get()) {
-            input.readFully(headerBytes)
+            if (!synced) input.readFully(headerBytes)
+            synced = false
             val header = Header.parse(headerBytes)
             val payload = ByteArray(header.payloadLength)
             if (payload.isNotEmpty()) input.readFully(payload)
@@ -143,6 +147,24 @@ class StreamClient(
     }
 
     /**
+     * Reads until [window] holds a valid HELLO header. Stale bytes before it (e.g. the rest of a
+     * video frame from an earlier USB session) are discarded. A peer speaking an older protocol
+     * is reported as such instead of as garbage.
+     */
+    private fun syncToHello(input: DataInputStream, window: ByteArray) {
+        input.readFully(window)
+        val first = ((window[0].toInt() and 0xFF) shl 8) or (window[1].toInt() and 0xFF)
+        if (first == Wire.LEGACY_MAGIC) throw ProtocolException("the Mac is running an older Unbound. Update it.")
+        var skipped = 0L
+        while (!Header.isHello(window)) {
+            if (++skipped > MAX_RESYNC_BYTES) throw ProtocolException("no Unbound handshake from the Mac")
+            System.arraycopy(window, 1, window, 0, window.size - 1)
+            window[window.size - 1] = input.readByte()
+        }
+        if (skipped > 0) Log.i(TAG, "skipped $skipped stale bytes before the handshake")
+    }
+
+    /**
      * Pings every second on the writer. Silence is checked on a separate thread, because a
      * USB write blocks while the Mac isn't reading. Silence for 4 s: TCP reconnects;
      * USB reports it and keeps waiting for the Mac to return.
@@ -167,5 +189,8 @@ class StreamClient(
 
     private fun nowUs() = SystemClock.elapsedRealtimeNanos() / 1000
 
-    companion object { private const val TAG = "UnboundStream" }
+    companion object {
+        private const val TAG = "UnboundStream"
+        private const val MAX_RESYNC_BYTES = 32L * 1024 * 1024
+    }
 }

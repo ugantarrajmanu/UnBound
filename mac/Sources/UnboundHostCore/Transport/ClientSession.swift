@@ -127,6 +127,10 @@ final class ClientSession: @unchecked Sendable {
         let messages: [(WireHeader, Data)]
         do {
             messages = try lock.withLock { try parser.append(data) }
+        } catch WireHeader.ParseError.outdatedPeer {
+            log("session \(channel): the tablet app is outdated. Install the latest: \(UnboundProduct.downloadURL)")
+            channel.close()
+            return
         } catch {
             log("session \(channel): protocol error \(error)")
             channel.close()

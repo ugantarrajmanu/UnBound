@@ -34,10 +34,25 @@ public protocol ByteChannel: AnyObject, Sendable, CustomStringConvertible {
 struct FrameParser {
     private var buffer = Data()
     private var header: WireHeader?
+    /// Until the peer's HELLO is found, unrecognised bytes are skipped rather than fatal.
+    private var synced = false
+    private(set) var skippedBytes = 0
 
     mutating func append(_ chunk: Data) throws -> [(WireHeader, Data)] {
         buffer.append(chunk)
         var out: [(WireHeader, Data)] = []
+        if !synced {
+            if skippedBytes == 0, buffer.count >= 2,
+               UInt16(buffer[buffer.startIndex]) << 8 | UInt16(buffer[buffer.startIndex + 1]) == WireHeader.legacyMagic {
+                throw WireHeader.ParseError.outdatedPeer
+            }
+            while buffer.count >= Wire.headerSize, !WireHeader.isHello(buffer) {
+                buffer.removeFirst()
+                skippedBytes += 1
+            }
+            guard buffer.count >= Wire.headerSize else { return out }
+            synced = true
+        }
         while true {
             if header == nil {
                 guard buffer.count >= Wire.headerSize else { break }

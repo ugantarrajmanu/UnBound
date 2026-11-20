@@ -2,6 +2,7 @@ package app.unbound.client.net
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -45,5 +46,15 @@ class WireProtocolTest {
         val expected = byteArrayOf(0, 1, 0x0A, 0x00, 0x06, 0x40, 0x01, 0x40, 3) +
             "abc".toByteArray() + "Tab".toByteArray()
         assertArrayEquals(expected, p)
+    }
+
+    @Test
+    fun recognisesHelloHeaderOnly() {
+        val hello = encodeMessage(Wire.TYPE_HELLO, ByteArray(10))
+        assertTrue(Header.isHello(hello.copyOf(Wire.HEADER_SIZE)))
+        val ping = encodeMessage(Wire.TYPE_PING)
+        assertFalse(Header.isHello(ping.copyOf(Wire.HEADER_SIZE)))
+        val shifted = ByteArray(1) + hello
+        assertFalse(Header.isHello(shifted.copyOf(Wire.HEADER_SIZE)))
     }
 }

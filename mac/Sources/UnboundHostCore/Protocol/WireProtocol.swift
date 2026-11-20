@@ -47,6 +47,23 @@ public struct WireHeader: Sendable, Equatable {
 
     public enum ParseError: Error, Equatable {
         case badMagic, unsupportedVersion(UInt8), unknownType(UInt8), payloadTooLarge(Int), truncated
+        /// The peer uses the pre-rename (Annex) marker: it needs updating.
+        case outdatedPeer
+    }
+
+    /// Marker used before the rename; recognised only to report "update the app".
+    public static let legacyMagic: UInt16 = 0x4158
+    static let maxHelloPayload = 4096
+
+    /// True when `bytes` starts with a plausible HELLO header. Used to resync a stream that
+    /// begins with stale bytes (USB keeps data from an earlier session).
+    static func isHello(_ bytes: Data) -> Bool {
+        guard bytes.count >= Wire.headerSize else { return false }
+        let b = [UInt8](bytes.prefix(Wire.headerSize))
+        guard UInt16(b[0]) << 8 | UInt16(b[1]) == Wire.magic, b[2] == Wire.version,
+              b[3] == Wire.MessageType.hello.rawValue else { return false }
+        let length = Int(b[8]) << 24 | Int(b[9]) << 16 | Int(b[10]) << 8 | Int(b[11])
+        return length <= maxHelloPayload
     }
 
     public static func parse(_ bytes: Data) throws -> WireHeader {
